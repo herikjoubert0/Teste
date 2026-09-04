@@ -98,11 +98,36 @@ function injectViaBlobURL(code) {
             const blob = new Blob([code], { type: 'application/javascript' });
             const blobUrl = URL.createObjectURL(blob);
             const script = document.createElement('script');
-            script.src = blobUrl;
             const timeout = setTimeout(() => { cleanup(); resolve({ success: false, error: 'timeout' }); }, 5000);
             function cleanup() { clearTimeout(timeout); URL.revokeObjectURL(blobUrl); script.remove(); }
             script.onload = () => { window.__CD_LOADED__ = true; cleanup(); resolve({ success: true, method: 'blob' }); };
             script.onerror = () => { cleanup(); resolve({ success: false, error: 'csp_blocked' }); };
+
+            // flow.google.com exige Trusted Types: setar script.src com string crua
+            // lanca "requires 'TrustedScriptURL'". Tenta criar uma politica que
+            // devolve a URL como TrustedScriptURL.
+            let urlToSet = blobUrl;
+            try {
+                if (window.trustedTypes && typeof window.trustedTypes.createPolicy === 'function') {
+                    const pol = window.trustedTypes.createPolicy('darkcista-' + Math.random().toString(36).slice(2), {
+                        createScriptURL: function (s) { return s; }
+                    });
+                    urlToSet = pol.createScriptURL(blobUrl);
+                }
+            } catch (ePol) {
+                // A diretiva trusted-types nao permite criar politica nova.
+                cleanup();
+                resolve({ success: false, error: 'trusted_types' });
+                return;
+            }
+
+            try {
+                script.src = urlToSet;
+            } catch (eSrc) {
+                cleanup();
+                resolve({ success: false, error: 'trusted_types' });
+                return;
+            }
             (document.head || document.documentElement).appendChild(script);
         } catch (e) {
             resolve({ success: false, error: e.message });
@@ -188,9 +213,11 @@ async function processTab(tabId, platform, opts = {}) {
             return;
         }
 
-        // Se falhou e não é retry, ativa CSP bypass e recarrega
-        if (!isRetry && result?.error === 'csp_blocked') {
-            console.log('[Darkcista] Blob URL bloqueado pela CSP, ativando bypass e recarregando...');
+        // Se falhou por CSP / Trusted Types e ainda nao e retry, remove o
+        // cabecalho de seguranca (que inclui require-trusted-types-for e
+        // script-src) e recarrega a pagina para injetar sem restricoes.
+        if (!isRetry && (result?.error === 'csp_blocked' || result?.error === 'trusted_types')) {
+            console.log(`[Darkcista] Injecao bloqueada (${result.error}), removendo CSP e recarregando...`);
             await enableCSPBypass();
             await chrome.storage.local.set({ [`cspBypass_${tabId}`]: true });
             await chrome.tabs.reload(tabId);
