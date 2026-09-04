@@ -1,0 +1,147 @@
+# 🚀 Como Instalar o Darkcista
+
+Guia completo para instalar a extensão no Chrome em modo de desenvolvedor.
+
+**Funciona em:** Google Whisk e Meta AI
+
+---
+
+## 🔧 Passo 1: Abrir as Extensões do Chrome
+
+1. Abra o Google Chrome
+2. Na barra de endereço, digite:
+   ```
+   chrome://extensions
+   ```
+3. Pressione **Enter**
+
+---
+
+## 👨‍💻 Passo 2: Ativar o Modo Desenvolvedor
+
+1. No canto **superior direito** da página de extensões, procure por **"Modo do desenvolvedor"**
+2. Clique no botão para **ativar** (deve ficar azul)
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  Extensões                          [Modo do desenvolvedor] 🔵 │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 📂 Passo 3: Carregar a Extensão
+
+1. Com o Modo Desenvolvedor ativado, aparecerão 3 botões no topo:
+   - **Carregar sem compactação**
+   - Compactar extensão
+   - Atualizar
+
+2. Clique em **"Carregar sem compactação"**
+
+3. Na janela que abrir, navegue até a pasta **"Darkcista"**
+
+4. Selecione a pasta e clique em **"Selecionar pasta"**
+
+> ⚠️ **Importante**: Não delete essa pasta depois! O Chrome precisa dela para a extensão funcionar.
+
+---
+
+## ✅ Passo 4: Verificar a Instalação
+
+Se tudo deu certo, você verá a extensão na lista:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  🟢 Darkcista - Automação IA                       │
+│  Automatize gerações no Whisk e Meta AI                 │
+│  ID: xxxxxxxxxxxxxxxxxxxxxx                             │
+│                                                         │
+│  [Detalhes]  [Remover]                    [Ativado] 🔵  │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🎯 Passo 5: Usar a Extensão
+
+### No Google Whisk:
+1. Acesse o Google Whisk:
+   ```
+   https://labs.google/fx/pt/tools/whisk/
+   ```
+
+2. Aguarde a página carregar completamente
+
+3. A interface do **Darkcista** aparecerá automaticamente na lateral direita da tela
+
+4. Pronto! É só usar normalmente 🎉
+
+### No Meta AI:
+1. Acesse o Meta AI:
+   ```
+   https://www.meta.ai/
+   ```
+
+2. Aguarde a página carregar completamente
+
+3. A interface do **Darkcista** aparecerá automaticamente
+
+4. Pronto! É só usar normalmente 🎉
+
+---
+
+## 🔄 Como Atualizar
+
+A automação é atualizada automaticamente pelo servidor, você **não precisa fazer nada**!
+
+Mas se precisar forçar uma atualização da extensão:
+
+1. Vá em `chrome://extensions`
+2. Clique no botão **🔄 Atualizar** (ou pressione Ctrl+R na página)
+
+---
+
+## 🐛 Problemas Comuns
+
+### A extensão não aparece no Whisk ou Meta AI
+
+1. Verifique se a extensão está **ativada** em `chrome://extensions`
+2. Atualize a página do site (F5)
+3. Espere alguns segundos após a página carregar
+
+### Erro ao carregar a extensão
+
+- Certifique-se de selecionar a **pasta** "Darkcista", não um arquivo dentro dela
+- Verifique se a pasta contém os arquivos: `manifest.json`, `background.js`, pasta `icons`
+
+### Ver logs de debug
+
+1. Vá em `chrome://extensions`
+2. Encontre "Darkcista - Automação IA"
+3. Clique em **"Service Worker"** (texto azul)
+4. Na janela que abrir, vá na aba **Console** para ver os logs
+
+---
+
+## 📱 Resumo Rápido
+
+```
+1. chrome://extensions
+2. Ativar "Modo do desenvolvedor"
+3. "Carregar sem compactação"
+4. Selecionar pasta "Darkcista"
+5. Acessar Whisk ou Meta AI
+6. Usar! 🎉
+```
+
+---
+
+## 📞 Suporte
+
+Dúvidas ou problemas?
+- YouTube: [@ViniciusLinharesCanalDark](https://www.youtube.com/@Vin%C3%ADciusLinharesCANALDARK)
+
+---
+
+*Desenvolvido por Darkcista*
