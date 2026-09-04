@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Darkcista",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Ferramentas de automação para Google Flow",
   "permissions": [
     "scripting",
@@ -22,6 +22,9 @@
   ],
   "background": {
     "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Darkcista — clique para forçar a ativação nesta aba"
   },
   "content_scripts": [
     {

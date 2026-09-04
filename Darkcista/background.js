@@ -13,31 +13,31 @@ const PLATFORMS = {
         name: 'Google Whisk',
         patterns: ['labs.google', 'whisk'],
         matchAll: true,
-        script: '/main_free.js'
+        scripts: ['/main_free.js', '/main.js']
     },
     flow: {
         name: 'Google Flow',
         patterns: ['flow.google'],
         matchAll: false,
-        script: '/flow_free.js'
+        scripts: ['/flow_free.js', '/flow.js']
     },
     meta: {
         name: 'Meta AI',
         patterns: ['meta.ai'],
         matchAll: false,
-        script: '/meta_free.js'
+        scripts: ['/meta_free.js', '/meta.js']
     },
     grok: {
         name: 'Grok',
         patterns: ['grok.com'],
         matchAll: false,
-        script: '/grok_free.js'
+        scripts: ['/grok_free.js', '/grok.js']
     },
     lmnt: {
         name: 'LMNT',
         patterns: ['lmnt.com', 'app.lmnt.com'],
         matchAll: false,
-        script: '/lmnt_free.js'
+        scripts: ['/lmnt_free.js', '/lmnt.js']
     }
 };
 
@@ -67,9 +67,9 @@ async function enableCSPBypass() {
         const ruleIds = CSP_RULES.map(r => r.id);
         await chrome.declarativeNetRequest.updateDynamicRules({ removeRuleIds: ruleIds, addRules: CSP_RULES });
         cspBypassEnabled = true;
-        console.log('[Criadores Dark Free] CSP Bypass ativado');
+        console.log('[Darkcista] CSP Bypass ativado');
     } catch (e) {
-        console.error('[Criadores Dark Free] Erro CSP:', e);
+        console.error('[Darkcista] Erro CSP:', e);
     }
 }
 
@@ -101,7 +101,7 @@ function injectViaBlobURL(code) {
             script.src = blobUrl;
             const timeout = setTimeout(() => { cleanup(); resolve({ success: false, error: 'timeout' }); }, 5000);
             function cleanup() { clearTimeout(timeout); URL.revokeObjectURL(blobUrl); script.remove(); }
-            script.onload = () => { cleanup(); resolve({ success: true, method: 'blob' }); };
+            script.onload = () => { window.__CD_LOADED__ = true; cleanup(); resolve({ success: true, method: 'blob' }); };
             script.onerror = () => { cleanup(); resolve({ success: false, error: 'csp_blocked' }); };
             (document.head || document.documentElement).appendChild(script);
         } catch (e) {
@@ -110,59 +110,99 @@ function injectViaBlobURL(code) {
     });
 }
 
+// Marcador deixado na página quando o script já foi injetado neste documento
+function readMarker() {
+    return !!window.__CD_LOADED__;
+}
+
+async function alreadyInjected(tabId) {
+    try {
+        const r = await chrome.scripting.executeScript({ target: { tabId }, world: 'MAIN', func: readMarker });
+        return r[0]?.result === true;
+    } catch (e) {
+        return false;
+    }
+}
+
+async function setBadge(tabId, text, color) {
+    try {
+        await chrome.action.setBadgeText({ tabId, text });
+        await chrome.action.setBadgeBackgroundColor({ tabId, color });
+    } catch (e) { /* aba fechada */ }
+}
+
+// Busca o script da plataforma, tentando os nomes alternativos em ordem
+async function fetchPlatformScript(config) {
+    const tentativas = [];
+    for (const path of config.scripts) {
+        const url = `${SCRIPT_BASE_URL}${path}?v=${Date.now()}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) { tentativas.push(`${path} → HTTP ${response.status}`); continue; }
+            const code = await response.text();
+            if (!code || code.length < 50) { tentativas.push(`${path} → vazio (${code.length} bytes)`); continue; }
+            return { code, path };
+        } catch (e) {
+            tentativas.push(`${path} → ${e.message}`);
+        }
+    }
+    console.log(`[Darkcista] RESULTADO: ❌ nenhum script disponível no servidor — ${tentativas.join(' | ')}`);
+    return null;
+}
+
 // =====================================================
 // FUNÇÃO PRINCIPAL
 // =====================================================
-async function processTab(tabId, platform, isRetry = false) {
+async function processTab(tabId, platform, opts = {}) {
+    const { isRetry = false, force = false } = opts;
     const config = PLATFORMS[platform];
-    console.log(`[Criadores Dark Free] Processando: ${config.name}${isRetry ? ' (retry)' : ''}`);
+    console.log(`[Darkcista] Processando: ${config.name}${isRetry ? ' (retry pós-CSP)' : ''}${force ? ' (ativação manual)' : ''}`);
 
     try {
-        // Busca script público (sem autenticação)
-        const url = `${SCRIPT_BASE_URL}${config.script}?v=${Date.now()}`;
-        const response = await fetch(url);
-
-        if (!response.ok) {
-            console.log(`[Criadores Dark Free] Script ${platform} não disponível (${response.status})`);
+        if (!force && await alreadyInjected(tabId)) {
+            console.log('[Darkcista] Script já carregado nesta página, ignorando.');
             return;
         }
 
-        const code = await response.text();
-        if (!code || code.length < 50) {
-            console.log(`[Criadores Dark Free] Script ${platform} vazio ou inválido`);
+        const found = await fetchPlatformScript(config);
+        if (!found) {
+            await setBadge(tabId, 'ERR', '#c62828');
             return;
         }
 
-        console.log(`[Criadores Dark Free] Script carregado (${code.length} bytes)`);
+        console.log(`[Darkcista] Script ${found.path} baixado (${found.code.length} bytes)`);
 
         // Injeta via Blob URL no MAIN world
         const results = await chrome.scripting.executeScript({
             target: { tabId },
             world: "MAIN",
             func: injectViaBlobURL,
-            args: [code]
+            args: [found.code]
         });
 
         const result = results[0]?.result;
 
         if (result?.success) {
-            console.log(`[Criadores Dark Free] ✅ Sucesso via ${result.method}`);
+            console.log(`[Darkcista] RESULTADO: ✅ ${found.path} injetado com sucesso via ${result.method}`);
+            await setBadge(tabId, 'ON', '#2e7d32');
             return;
         }
 
         // Se falhou e não é retry, ativa CSP bypass e recarrega
         if (!isRetry && result?.error === 'csp_blocked') {
-            console.log('[Criadores Dark Free] Blob URL bloqueado, ativando CSP bypass...');
+            console.log('[Darkcista] Blob URL bloqueado pela CSP, ativando bypass e recarregando...');
             await enableCSPBypass();
-            await chrome.tabs.reload(tabId);
             await chrome.storage.local.set({ [`cspBypass_${tabId}`]: true });
+            await chrome.tabs.reload(tabId);
             return;
         }
 
-        console.log(`[Criadores Dark Free] Erro na injeção:`, result?.error);
+        console.log(`[Darkcista] RESULTADO: ❌ falha na injeção — ${result?.error}`);
+        await setBadge(tabId, 'ERR', '#c62828');
 
     } catch (e) {
-        console.error('[Criadores Dark Free] Erro:', e);
+        console.error('[Darkcista] RESULTADO: ❌ erro:', e);
+        await setBadge(tabId, 'ERR', '#c62828');
     }
 }
 
@@ -174,25 +214,58 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         const platform = detectPlatform(tab.url);
 
         if (platform) {
-            console.log(`[Criadores Dark Free] ${platform} detectado`);
+            console.log(`[Darkcista] ${platform} detectado em ${tab.url}`);
 
             const { [`cspBypass_${tabId}`]: isRetry } = await chrome.storage.local.get([`cspBypass_${tabId}`]);
             if (isRetry) await chrome.storage.local.remove([`cspBypass_${tabId}`]);
 
             setTimeout(() => {
-                processTab(tabId, platform, isRetry).catch(e => {
-                    console.error('[Criadores Dark Free] Erro:', e);
+                processTab(tabId, platform, { isRetry }).catch(e => {
+                    console.error('[Darkcista] Erro:', e);
                 });
             }, 1500);
         }
     }
 });
 
-chrome.runtime.onInstalled.addListener(() => {
-    console.log('[Criadores Dark Free] Extensão v1.0 instalada');
+// O Flow troca de tela sem recarregar a página (history API), então
+// a navegação interna do site também precisa disparar a injeção.
+const NAV_FILTER = {
+    url: [
+        { hostSuffix: 'flow.google' },
+        { hostSuffix: 'flow.google.com' },
+        { hostSuffix: 'labs.google' },
+        { hostSuffix: 'labs.google.com' }
+    ]
+};
+
+chrome.webNavigation.onHistoryStateUpdated.addListener((details) => {
+    if (details.frameId !== 0) return;
+    const platform = detectPlatform(details.url);
+    if (!platform) return;
+    setTimeout(() => {
+        processTab(details.tabId, platform).catch(() => {});
+    }, 1200);
+}, NAV_FILTER);
+
+// Clique no ícone da extensão = forçar ativação na aba atual
+chrome.action.onClicked.addListener(async (tab) => {
+    if (!tab || !tab.id || !tab.url) return;
+    const platform = detectPlatform(tab.url);
+    if (!platform) {
+        console.log(`[Darkcista] Página não suportada: ${tab.url}`);
+        await setBadge(tab.id, '?', '#f9a825');
+        return;
+    }
+    console.log('[Darkcista] Ativação manual solicitada pelo usuário...');
+    await processTab(tab.id, platform, { force: true });
 });
 
-console.log('[Criadores Dark Free] Service Worker v1.0 iniciado');
+chrome.runtime.onInstalled.addListener(() => {
+    console.log('[Darkcista] Extensão instalada');
+});
+
+console.log('[Darkcista] Service Worker iniciado');
 
 // =====================================================
 // DOWNLOAD ROBUSTO COM FILA  (correcao Darkcista)
